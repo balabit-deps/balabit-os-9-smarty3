@@ -1,0 +1,63 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+#export DH_VERBOSE=1
+
+include /usr/share/dpkg/pkg-info.mk
+
+%:
+	dh $@ --with phpcomposer
+
+override_dh_auto_build:
+	if [ ! -e libs/sysplugins/smarty_internal_configfilelexer.php.orig ]; then \
+	    cp libs/sysplugins/smarty_internal_configfilelexer.php libs/sysplugins/smarty_internal_configfilelexer.php.orig; \
+	fi
+	if [ ! -e libs/sysplugins/smarty_internal_configfileparser.php.orig ]; then \
+	    cp libs/sysplugins/smarty_internal_configfileparser.php libs/sysplugins/smarty_internal_configfileparser.php.orig; \
+	fi
+	php /usr/share/php/smarty-lexer/Create_Config_Parser.php
+
+	if [ ! -e libs/sysplugins/smarty_internal_templatelexer.php.orig ]; then \
+	    cp libs/sysplugins/smarty_internal_templatelexer.php libs/sysplugins/smarty_internal_templatelexer.php.orig; \
+	fi
+	if [ ! -e libs/sysplugins/smarty_internal_templateparser.php.orig ]; then \
+	    cp libs/sysplugins/smarty_internal_templateparser.php libs/sysplugins/smarty_internal_templateparser.php.orig; \
+	fi
+	php /usr/share/php/smarty-lexer/Create_Template_Parser.php
+
+	dh_auto_build
+
+override_dh_auto_clean:
+	if [ -e libs/sysplugins/smarty_internal_configfilelexer.php.orig ]; then \
+	    mv libs/sysplugins/smarty_internal_configfilelexer.php.orig libs/sysplugins/smarty_internal_configfilelexer.php; \
+	fi
+	if [ -e libs/sysplugins/smarty_internal_configfileparser.php.orig ]; then \
+	    mv libs/sysplugins/smarty_internal_configfileparser.php.orig libs/sysplugins/smarty_internal_configfileparser.php; \
+	fi
+
+	if [ -e libs/sysplugins/smarty_internal_templatelexer.php.orig ]; then \
+	    mv libs/sysplugins/smarty_internal_templatelexer.php.orig libs/sysplugins/smarty_internal_templatelexer.php; \
+	fi
+	if [ -e libs/sysplugins/smarty_internal_templateparser.php.orig ]; then \
+	    mv libs/sysplugins/smarty_internal_templateparser.php.orig libs/sysplugins/smarty_internal_templateparser.php; \
+	fi
+
+	rm -f lexer/smarty_internal_configfilelexer.php
+	rm -f lexer/smarty_internal_configfileparser.out
+	rm -f lexer/smarty_internal_configfileparser.php
+	rm -f lexer/smarty_internal_templatelexer.php
+	rm -f lexer/smarty_internal_templateparser.out
+	rm -f lexer/smarty_internal_templateparser.php
+
+override_dh_install:
+	dh_install
+	rm -f debian/smarty3/usr/share/php/smarty3/sysplugins/*.php.bak
+	rm -f debian/smarty3/usr/share/php/smarty3/sysplugins/*.php.bak
+	rm -f debian/smarty3/usr/share/php/smarty3/sysplugins/*.php.orig
+	rm -f debian/smarty3/usr/share/php/smarty3/sysplugins/*.php.orig
+
+override_dh_installchangelogs:
+	dh_installchangelogs CHANGELOG.md
+
+get-orig-source:
+	uscan --noconf --force-download --rename --download-current-version --destdir=..

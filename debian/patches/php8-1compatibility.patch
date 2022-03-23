@@ -1,0 +1,140 @@
+Description: Fix for compatibility with PHP 8.1
+Origin: backport, https://github.com/smarty-php/smarty/commit/da76d927ed77fb6b3cb8345b83776712d0778e55
+Last-Update: 2022-03-25 
+---
+Index: smarty3-3.1.39/libs/plugins/function.html_select_date.php
+===================================================================
+--- smarty3-3.1.39.orig/libs/plugins/function.html_select_date.php
++++ smarty3-3.1.39/libs/plugins/function.html_select_date.php
+@@ -306,11 +306,36 @@ function smarty_function_html_select_dat
+             $_html_months .= '<option value="">' . (isset($month_empty) ? $month_empty : $all_empty) . '</option>' .
+                              $option_separator;
+         }
++
++        $formatter = null;
++        $format_compare = '%m';
++        if (class_exists('IntlDateFormatter')) {
++            $format_compare = 'm';
++            $patterns = array('%b', '%h', '%B', '%m');
++            $replacement = array('MMM', 'MMM', 'MMMM', 'MM');
++            $month_format = str_replace($patterns, $replacement, $month_format);
++            $month_value_format = str_replace($patterns, $replacement, $month_value_format);
++            $formatter = new IntlDateFormatter(
++                setlocale(LC_TIME, '0'),
++                IntlDateFormatter::NONE,
++                IntlDateFormatter::NONE)
++            ;
++        }
+         for ($i = 1; $i <= 12; $i++) {
++            if (null !== $formatter) {
++                $formatter->setPattern($month_format);
++                $_text = $formatter->format($_month_timestamps[ $i ]);
++                $formatter->setPattern($month_value_format);
++                $_value = $formatter->format($_month_timestamps[ $i ]);
++            } else {
++                $_text = strftime($month_format, $_month_timestamps[ $i ]);
++                $_value = strftime($month_value_format, $_month_timestamps[ $i ]);
++            }
++
+             $_val = sprintf('%02d', $i);
+             $_text = isset($month_names) ? smarty_function_escape_special_chars($month_names[ $i ]) :
+-                ($month_format === '%m' ? $_val : strftime($month_format, $_month_timestamps[ $i ]));
+-            $_value = $month_value_format === '%m' ? $_val : strftime($month_value_format, $_month_timestamps[ $i ]);
++                ($month_format === $format_compare ? $_val : $_text);
++            $_value = $month_value_format === $format_compare ? $_val : $_value;
+             $_html_months .= '<option value="' . $_value . '"' . ($_val == $_month ? ' selected="selected"' : '') .
+                              '>' . $_text . '</option>' . $option_separator;
+         }
+Index: smarty3-3.1.39/libs/sysplugins/smarty_internal_cacheresource_file.php
+===================================================================
+--- smarty3-3.1.39.orig/libs/sysplugins/smarty_internal_cacheresource_file.php
++++ smarty3-3.1.39/libs/sysplugins/smarty_internal_cacheresource_file.php
+@@ -196,12 +196,8 @@ class Smarty_Internal_CacheResource_File
+      */
+     public function hasLock(Smarty $smarty, Smarty_Template_Cached $cached)
+     {
+-        if (version_compare(PHP_VERSION, '5.3.0', '>=')) {
+-            clearstatcache(true, $cached->lock_id);
+-        } else {
+-            clearstatcache();
+-        }
+-        if (is_file($cached->lock_id)) {
++        clearstatcache(true, $cached->lock_id ?? '');
++        if (null !== $cached->lock_id && is_file($cached->lock_id)) {
+             $t = filemtime($cached->lock_id);
+             return $t && (time() - $t < $smarty->locking_timeout);
+         } else {
+Index: smarty3-3.1.39/libs/sysplugins/smarty_internal_compile_function.php
+===================================================================
+--- smarty3-3.1.39.orig/libs/sysplugins/smarty_internal_compile_function.php
++++ smarty3-3.1.39/libs/sysplugins/smarty_internal_compile_function.php
+@@ -157,7 +157,7 @@ class Smarty_Internal_Compile_Functioncl
+             $output = "<?php echo \"/*%%SmartyNocache:{$compiler->template->compiled->nocache_hash}%%*/<?php ";
+             $output .= "\\\$_smarty_tpl->smarty->ext->_tplFunction->restoreTemplateVariables(\\\$_smarty_tpl, '{$_name}');?>\n";
+             $output .= "/*/%%SmartyNocache:{$compiler->template->compiled->nocache_hash}%%*/\";\n?>";
+-            $output .= "<?php echo str_replace('{$compiler->template->compiled->nocache_hash}', \$_smarty_tpl->compiled->nocache_hash, ob_get_clean());\n";
++            $output .= "<?php echo str_replace('{$compiler->template->compiled->nocache_hash}', \$_smarty_tpl->compiled->nocache_hash ?? '', ob_get_clean());\n";
+             $output .= "}\n}\n";
+             $output .= "/*/ {$_funcName}_nocache */\n\n";
+             $output .= "?>\n";
+Index: smarty3-3.1.39/libs/sysplugins/smarty_internal_config_file_compiler.php
+===================================================================
+--- smarty3-3.1.39.orig/libs/sysplugins/smarty_internal_config_file_compiler.php
++++ smarty3-3.1.39/libs/sysplugins/smarty_internal_config_file_compiler.php
+@@ -158,7 +158,7 @@ class Smarty_Internal_Config_File_Compil
+         }
+         // template header code
+         $template_header =
+-            "<?php /* Smarty version " . Smarty::SMARTY_VERSION . ", created on " . strftime("%Y-%m-%d %H:%M:%S") .
++            "<?php /* Smarty version " . Smarty::SMARTY_VERSION . ", created on " . date("Y-m-d H:i:s") .
+             "\n";
+         $template_header .= "         compiled from '{$this->template->source->filepath}' */ ?>\n";
+         $code = '<?php $_smarty_tpl->smarty->ext->configLoad->_loadConfigVars($_smarty_tpl, ' .
+Index: smarty3-3.1.39/libs/sysplugins/smarty_internal_runtime_codeframe.php
+===================================================================
+--- smarty3-3.1.39.orig/libs/sysplugins/smarty_internal_runtime_codeframe.php
++++ smarty3-3.1.39/libs/sysplugins/smarty_internal_runtime_codeframe.php
+@@ -45,7 +45,7 @@ class Smarty_Internal_Runtime_CodeFrame
+             $properties[ 'cache_lifetime' ] = $_template->cache_lifetime;
+         }
+         $output = "<?php\n";
+-        $output .= "/* Smarty version {$properties[ 'version' ]}, created on " . strftime("%Y-%m-%d %H:%M:%S") .
++        $output .= "/* Smarty version {$properties[ 'version' ]}, created on " . date("Y-m-d H:i:s") .
+                    "\n  from '" . str_replace('*/', '* /', $_template->source->filepath) . "' */\n\n";
+         $output .= "/* @var Smarty_Internal_Template \$_smarty_tpl */\n";
+         $dec = "\$_smarty_tpl->_decodeProperties(\$_smarty_tpl, " . var_export($properties, true) . ',' .
+Index: smarty3-3.1.39/libs/sysplugins/smarty_internal_templatecompilerbase.php
+===================================================================
+--- smarty3-3.1.39.orig/libs/sysplugins/smarty_internal_templatecompilerbase.php
++++ smarty3-3.1.39/libs/sysplugins/smarty_internal_templatecompilerbase.php
+@@ -1151,7 +1151,7 @@ abstract class Smarty_Internal_TemplateC
+             flush();
+         }
+         $e = new SmartyCompilerException($error_text);
+-        $e->line = $line;
++        $e->setLine($line);
+         $e->source = trim(preg_replace('![\t\r\n]+!', ' ', $match[ $line - 1 ]));
+         $e->desc = $args;
+         $e->template = $this->template->source->filepath;
+Index: smarty3-3.1.39/libs/sysplugins/smartycompilerexception.php
+===================================================================
+--- smarty3-3.1.39.orig/libs/sysplugins/smartycompilerexception.php
++++ smarty3-3.1.39/libs/sysplugins/smartycompilerexception.php
+@@ -16,12 +16,12 @@ class SmartyCompilerException extends Sm
+     }
+ 
+     /**
+-     * The line number of the template error
+-     *
+-     * @type int|null
++     * @param int $line
+      */
+-    public $line = null;
+-
++    public function setLine($line)
++    {
++        $this->line = $line;
++    }
+     /**
+      * The template source snippet relating to the error
+      *
