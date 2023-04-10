@@ -1,3 +1,19 @@
+smarty3 (3.1.39-2ubuntu1.22.04.1) jammy-security; urgency=medium
+
+  * SECURITY UPDATE: PHP code injection by malicious block or filename
+    - debian/patches/CVE-2022-29221.patch: Prevents a PHP code injection by
+      defining a new escaping function in
+      libs/sysplugins/smarty_internal_templatecompilerbase.php and using it in
+      multiple files: libs/sysplugins/smarty_internal_compile_block.php,
+      libs/sysplugins/smarty_internal_compile_function.php,
+      libs/sysplugins/smarty_internal_compile_include.php,
+      libs/sysplugins/smarty_internal_config_file_compiler.php,
+      libs/sysplugins/smarty_internal_runtime_codeframe.php, and
+      libs/sysplugins/smarty_internal_templatecompilerbase.php.
+    - CVE-2022-29221
+
+ -- George-Andrei Iosif <andrei.iosif@canonical.com>  Mon, 10 Apr 2023 17:18:37 +0300
+
 smarty3 (3.1.39-2ubuntu1) jammy; urgency=medium
 
   * SECURITY UPDATE: execution of restricted php methods

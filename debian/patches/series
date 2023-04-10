@@ -3,3 +3,4 @@ CVE-2021-29454-1.patch
 CVE-2021-29454-2.patch
 CVE-2021-29454-3.patch
 php8-1compatibility.patch
+CVE-2022-29221.patch
