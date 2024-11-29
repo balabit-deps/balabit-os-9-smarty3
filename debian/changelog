@@ -1,3 +1,18 @@
+smarty3 (3.1.39-2ubuntu1.22.04.2) jammy-security; urgency=medium
+
+  * SECURITY UPDATE: Cross site scripting vulnerability
+    - debian/patches/CVE-2018-25047.patch: Applied appropriate
+      javascript and html escaping in mailto plugin to counter injection
+      attacks.
+    - debian/patches/CVE-2023-28447.patch: Implement fix and tests
+    - debian/patches/CVE-2024-35226.patch: Fixed a code injection
+      vulnerability in extends-tag.
+    - CVE-2018-25047
+    - CVE-2023-28447
+    - CVE-2024-35226
+
+ -- Paulo Flabiano Smorigo <pfsmorigo@canonical.com>  Fri, 29 Nov 2024 10:49:51 -0300
+
 smarty3 (3.1.39-2ubuntu1.22.04.1) jammy-security; urgency=medium
 
   * SECURITY UPDATE: PHP code injection by malicious block or filename
